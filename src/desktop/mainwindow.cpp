@@ -397,10 +397,14 @@ void MainWindow::setupScripts()
         ActionManager::inst()->clearDynamicActions();
     });
     connect(ScriptManager::inst(), &ScriptManager::reloaded,
-            this, [reloadScripts]() {
+            this, [this, reloadScripts]() {
         reloadScripts(ScriptManager::inst()->scripts());
+        // Refresh toolbar to include newly registered extension actions
+        setupToolBar();
     });
     reloadScripts(ScriptManager::inst()->scripts());
+    // Refresh toolbar after initial script load
+    setupToolBar();
 }
 
 void MainWindow::languageChange()
