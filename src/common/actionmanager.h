@@ -130,6 +130,11 @@ public:
 
     const Action *action(const char *name) const;
     QVector<const Action *> allActions() const;
+    QVector<QAction *> dynamicActions() const;
+
+    void registerDynamicAction(QAction *action);
+    void unregisterDynamicAction(QAction *action);
+    void clearDynamicActions();
 
     void setCustomShortcut(const char *name, const QKeySequence &shortcut);
     void setCustomShortcuts(const QMap<QByteArray, QKeySequence> &shortcuts);
@@ -191,6 +196,7 @@ private:
 
     std::vector<Action> m_actions;
     QMap<char, QActionGroup *> m_qactionGroups;
+    QVector<QPointer<QAction>> m_dynamicActions;
 
     static ActionManager *s_inst;
 

@@ -26,6 +26,7 @@ echo.
     --no-compiler-runtime ^
     --no-translations ^
     --no-opengl-sw ^
+    --qmldir=. ^
     "bin\BrickStore.exe"
 
 if errorlevel 1 (

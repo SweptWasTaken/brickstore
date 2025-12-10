@@ -68,6 +68,15 @@ public:
             }
         }
 
+        // Add dynamic actions (e.g., extension actions)
+        const auto dynamicActions = ActionManager::inst()->dynamicActions();
+        for (auto *qa : dynamicActions) {
+            QString mtitle = rootMenu(qa);
+            if (mtitle.isEmpty())
+                mtitle = tr("Extensions");
+            m_actions.insert(mtitle, qa->objectName());
+        }
+
         static const std::vector<std::pair<QString, const char *>> separators = {
             { u"-"_qs,  QT_TR_NOOP("Bar Separator") },
             { u"|"_qs,  QT_TR_NOOP("Space Separator") },

@@ -34,3 +34,54 @@ doc/html
 build/
 .cache/
 .qmlls.ini
+.claude
+src/scanner/scanner_module_autogen
+.qt
+bin
+BrickStore_autogen
+
+# CMake build artifacts
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CPackSourceConfig.cmake
+BundleConfig.cmake
+*.cmake.in
+compile_commands.json
+
+# Ninja build files
+.ninja_deps
+.ninja_log
+build.ninja
+rules.ninja
+
+# Qt autogen directories
+*_autogen/
+
+# Build outputs
+*.lib
+*.exp
+*.obj
+*.pdb
+*.ilk
+*.manifest
+
+# Generated files
+generated/
+qm/
+imports/
+meta_types/
+qmltypes/
+
+# Qt QML type registrations
+*_qmltyperegistrations.cpp
+
+# Dependency builds
+_deps/
+
+# Test files
+*.bsx
+
+# NPM artifacts
+package-lock.json
+node_modules/

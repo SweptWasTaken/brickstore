@@ -391,6 +391,8 @@ QmlDocument::QmlDocument(Document *doc)
     });
     connect(doc, &Document::selectedLotsChanged,
             this, &QmlDocument::qmlSelectedLotsChanged);
+    connect(doc, &Document::selectedLotsChanged,
+            this, &QmlDocument::qmlCurrentLotChanged);
 
     connect(model(), &DocumentModel::lotCountChanged,
             this, &QmlDocument::lotCountChanged);
@@ -430,6 +432,17 @@ QList<BrickLink::QmlLot> QmlDocument::qmlSelectedLots()
         qmlLots << BrickLink::QmlLot(lot);
 
     return qmlLots;
+}
+
+BrickLink::QmlLot QmlDocument::qmlCurrentLot()
+{
+    auto idx = m_doc->currentIndex();
+    if (idx.isValid()) {
+        auto *lot = model()->lot(idx);
+        if (lot)
+            return BrickLink::QmlLot(lot, qmlLots());
+    }
+    return BrickLink::QmlLot();
 }
 
 QString QmlDocument::filterString() const
@@ -1143,19 +1156,18 @@ QmlDocumentLots::QmlDocumentLots(DocumentModel *model)
     }
 }
 
-/*! \qmlmethod int Document::lots.add(Item item, Color color)
+/*! \qmlmethod Lot Document::lots.add(Item item, Color color)
     Adds a new lot for the given \a item and \a color combination to the document.
-    Returns the index of the newly created lot in the document.
-    This index is independent of sort order and filtering.
+    Returns the newly created lot.
 */
-int QmlDocumentLots::add(BrickLink::QmlItem item, BrickLink::QmlColor color)
+BrickLink::QmlLot QmlDocumentLots::add(BrickLink::QmlItem item, BrickLink::QmlColor color)
 {
     auto lot = new Lot();
     lot->setItem(item.wrappedObject());
     lot->setColor(color.wrappedObject());
     auto lotRef = lot;
     m_model->appendLot(std::move(lot));
-    return int(m_model->lots().indexOf(lotRef));
+    return BrickLink::QmlLot(lotRef, this);
 }
 
 /*! \qmlmethod Document::lots.remove(Lot lot)

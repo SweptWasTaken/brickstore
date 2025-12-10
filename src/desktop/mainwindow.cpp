@@ -314,13 +314,31 @@ void MainWindow::setupScripts()
         QList<QAction *> extrasActions;
 
         for (auto script : scripts) {
+            int extensionActionCounter = 0;
             const auto extensionActions = script->extensionActions();
             for (auto extensionAction : extensionActions) {
                 auto action = new QAction(extensionAction->text(), extensionAction);
+
+                // Set unique objectName for toolbar system
+                // Use script name and counter to generate unique ID
+                QString scriptName = script->name().isEmpty() ? u"unnamed"_qs : script->name();
+                scriptName.replace(u' ', u'_');  // Replace spaces for objectName
+                QString objectName = QString::fromLatin1("extension_%1_%2")
+                    .arg(scriptName)
+                    .arg(extensionActionCounter++);
+                action->setObjectName(objectName);
+
+                // Register with ActionManager for toolbar customization
+                ActionManager::inst()->registerDynamicAction(action);
+
                 if (extensionAction->location() == ExtensionScriptAction::Location::ContextMenu)
                     m_extensionContextActions.append(action);
                 else
                     extrasActions.append(action);
+
+                // Update QAction text when ExtensionScriptAction text changes
+                connect(extensionAction, &ExtensionScriptAction::textChanged,
+                        action, &QAction::setText);
 
                 connect(action, &QAction::triggered, extensionAction, [extensionAction]() {
                     try {
@@ -333,6 +351,18 @@ void MainWindow::setupScripts()
             const auto printingActions = script->printingActions();
             for (auto printingAction : printingActions) {
                 auto action = new QAction(printingAction->text(), printingAction);
+
+                // Set unique objectName for toolbar system
+                QString scriptName = script->name().isEmpty() ? u"unnamed"_qs : script->name();
+                scriptName.replace(u' ', u'_');  // Replace spaces for objectName
+                QString objectName = QString::fromLatin1("printing_%1_%2")
+                    .arg(scriptName)
+                    .arg(extensionActionCounter++);
+                action->setObjectName(objectName);
+
+                // Register with ActionManager for toolbar customization
+                ActionManager::inst()->registerDynamicAction(action);
+
                 extrasActions.append(action);
 
                 connect(action, &QAction::triggered, printingAction, [this, printingAction]() {
@@ -362,6 +392,9 @@ void MainWindow::setupScripts()
                 m_extrasMenu->removeAction(a);
         }
         m_extensionContextActions.clear();
+
+        // Clear dynamic actions from ActionManager before reloading
+        ActionManager::inst()->clearDynamicActions();
     });
     connect(ScriptManager::inst(), &ScriptManager::reloaded,
             this, [reloadScripts]() {

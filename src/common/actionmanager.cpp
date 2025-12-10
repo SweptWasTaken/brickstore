@@ -526,6 +526,35 @@ QVector<const ActionManager::Action *> ActionManager::allActions() const
     return all;
 }
 
+QVector<QAction *> ActionManager::dynamicActions() const
+{
+    QVector<QAction *> actions;
+    actions.reserve(m_dynamicActions.size());
+    for (const auto &action : m_dynamicActions) {
+        if (action)
+            actions.append(action);
+    }
+    return actions;
+}
+
+void ActionManager::registerDynamicAction(QAction *action)
+{
+    if (action && !m_dynamicActions.contains(action)) {
+        action->setProperty("bsDynamicAction", true);
+        m_dynamicActions.append(action);
+    }
+}
+
+void ActionManager::unregisterDynamicAction(QAction *action)
+{
+    m_dynamicActions.removeAll(action);
+}
+
+void ActionManager::clearDynamicActions()
+{
+    m_dynamicActions.clear();
+}
+
 void ActionManager::setCustomShortcut(const char *name, const QKeySequence &shortcut)
 {
     if (auto *a = const_cast<Action *>(action(name))) {
@@ -584,7 +613,16 @@ void ActionManager::retranslate()
 QAction *ActionManager::qAction(const char *name)
 {
     auto aa = const_cast<Action *>(action(name));
-    return aa ? aa->m_qaction : nullptr;
+    if (aa && aa->m_qaction)
+        return aa->m_qaction;
+
+    // Check dynamic actions by objectName
+    QString nameStr = QString::fromLatin1(name);
+    for (const auto &action : m_dynamicActions) {
+        if (action && action->objectName() == nameStr)
+            return action;
+    }
+    return nullptr;
 }
 
 void ActionManager::setupQAction(Action &aa)

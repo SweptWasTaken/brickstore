@@ -59,6 +59,7 @@ class QmlDocument : public QAbstractProxyModel
     Q_PROPERTY(QString filterString READ filterString WRITE setFilterString NOTIFY filterStringChanged FINAL)
     Q_PROPERTY(QmlDocumentLots *lots READ qmlLots CONSTANT FINAL)
     Q_PROPERTY(QList<BrickLink::QmlLot> selectedLots READ qmlSelectedLots NOTIFY qmlSelectedLotsChanged FINAL)
+    Q_PROPERTY(BrickLink::QmlLot currentLot READ qmlCurrentLot NOTIFY qmlCurrentLotChanged FINAL)
     Q_PROPERTY(QmlDocumentColumnModel *columnModel READ columnModel CONSTANT FINAL)
     Q_PROPERTY(QItemSelectionModel *selectionModel READ selectionModel CONSTANT FINAL)
     Q_PROPERTY(Document *document READ document CONSTANT FINAL)
@@ -85,6 +86,7 @@ public:
     QVariantList qmlSortColumns() const;
     QmlDocumentLots *qmlLots();
     QList<BrickLink::QmlLot> qmlSelectedLots();
+    BrickLink::QmlLot qmlCurrentLot();
 
     QString filterString() const;
     void setFilterString(const QString &newFilterString);
@@ -135,6 +137,7 @@ signals:
 
     void qmlSortColumnsChanged();
     void qmlSelectedLotsChanged();
+    void qmlCurrentLotChanged();
 
 private:
     DocumentModel *model() { return m_doc->model(); }
@@ -507,7 +510,7 @@ class QmlDocumentLots : public QObject
 public:
     QmlDocumentLots(DocumentModel *model);
 
-    Q_INVOKABLE int add(BrickLink::QmlItem item, BrickLink::QmlColor color);
+    Q_INVOKABLE BrickLink::QmlLot add(BrickLink::QmlItem item, BrickLink::QmlColor color);
     Q_INVOKABLE void remove(BrickLink::QmlLot lot);
     Q_INVOKABLE void removeAt(int index);
     Q_INVOKABLE void removeVisibleAt(int index);
