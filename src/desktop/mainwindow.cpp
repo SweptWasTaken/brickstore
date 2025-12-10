@@ -1241,6 +1241,11 @@ void MainWindow::showAddItemDialog(const BrickLink::Item *item, const BrickLink:
     }
 }
 
+AddItemDialog *MainWindow::addItemDialog() const
+{
+    return m_add_dialog;
+}
+
 void MainWindow::blockUpdate(bool blocked)
 {
     static QUndoStack blockStack;

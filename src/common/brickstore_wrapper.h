@@ -587,6 +587,8 @@ class QmlBrickStore : public QObject
     Q_PROPERTY(QVariantMap about READ about CONSTANT FINAL)
     Q_PROPERTY(QmlDebug *debug READ debug CONSTANT FINAL)
     Q_PROPERTY(QWindow *mainWindow READ mainWindow NOTIFY mainWindowChanged FINAL)
+    Q_PROPERTY(BrickLink::QmlItem addDialogItem READ addDialogItem NOTIFY addDialogItemChanged FINAL)
+    Q_PROPERTY(BrickLink::QmlColor addDialogColor READ addDialogColor NOTIFY addDialogColorChanged FINAL)
 
 public:
     static QmlBrickStore *inst();
@@ -602,6 +604,8 @@ public:
     QmlDebug *debug() const;
     QString defaultCurrencyCode() const;
     QWindow *mainWindow() const;
+    BrickLink::QmlItem addDialogItem() const;
+    BrickLink::QmlColor addDialogColor() const;
 
     Q_INVOKABLE double exchangeRate(const QString &fromCode, const QString &toCode) const;
 
@@ -639,6 +643,8 @@ signals:
     void activeDocumentChanged(QmlDocument *doc);
     void mainWindowChanged(QWindow *newWindow);
     void versionWasUpdated(const QString &version, const QString &changeLog, const QUrl &releaseUrl);
+    void addDialogItemChanged(BrickLink::QmlItem item);
+    void addDialogColorChanged(BrickLink::QmlColor color);
     void versionCanBeUpdated(const QString &version, const QString &changeLog, const QUrl &releaseUrl);
 
 private:

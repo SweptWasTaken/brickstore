@@ -70,6 +70,8 @@ public:
     void showAddItemDialog(const BrickLink::Item *item = nullptr,
                             const BrickLink::Color *color = nullptr);
 
+    AddItemDialog *addItemDialog() const;
+
 public slots:
     void blockUpdate(bool blocked);
     void titleUpdate();

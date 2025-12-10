@@ -29,6 +29,13 @@
 #include "brickstore_wrapper_p.h"
 #include "version.h"
 
+#if defined(BS_DESKTOP)
+#  include "desktop/mainwindow.h"
+#  include "desktop/additemdialog.h"
+#  include "desktop/selectitem.h"
+#  include "desktop/selectcolor.h"
+#endif
+
 using namespace std::chrono_literals;
 
 /*! \qmltype BrickStore
@@ -153,6 +160,48 @@ QString QmlBrickStore::defaultCurrencyCode() const
 QWindow *QmlBrickStore::mainWindow() const
 {
     return Application::inst()->mainWindow();
+}
+
+BrickLink::QmlItem QmlBrickStore::addDialogItem() const
+{
+#if defined(BS_DESKTOP)
+    auto mainWindow = MainWindow::inst();
+    if (!mainWindow)
+        return { };
+
+    auto addDialog = mainWindow->addItemDialog();
+    if (!addDialog)
+        return { };
+
+    auto selectItem = addDialog->findChild<SelectItem *>();
+    if (!selectItem)
+        return { };
+
+    return BrickLink::QmlItem(selectItem->currentItem());
+#else
+    return { };
+#endif
+}
+
+BrickLink::QmlColor QmlBrickStore::addDialogColor() const
+{
+#if defined(BS_DESKTOP)
+    auto mainWindow = MainWindow::inst();
+    if (!mainWindow)
+        return { };
+
+    auto addDialog = mainWindow->addItemDialog();
+    if (!addDialog)
+        return { };
+
+    auto selectColor = addDialog->findChild<SelectColor *>();
+    if (!selectColor)
+        return { };
+
+    return BrickLink::QmlColor(selectColor->currentColor());
+#else
+    return { };
+#endif
 }
 
 /*! \qmlmethod string BrickStore::exchangeRate(string fromCode, string toCode)
