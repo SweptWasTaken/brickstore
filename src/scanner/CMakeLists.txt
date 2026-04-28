@@ -58,4 +58,8 @@ target_link_libraries(scanner_module PRIVATE
     bricklink_module
 )
 
+if (WIN32)
+    target_link_libraries(scanner_module PRIVATE strmiids)
+endif()
+
 target_link_libraries(${PROJECT_NAME} PRIVATE scanner_module)

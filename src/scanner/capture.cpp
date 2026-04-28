@@ -25,6 +25,11 @@
 #include "core.h"
 #include "capture.h"
 
+#ifdef Q_OS_WIN
+#  include <dshow.h>
+#  include <wrl/client.h>
+#endif
+
 
 using namespace std::chrono_literals;
 
@@ -58,10 +63,77 @@ public:
     QList<const BrickLink::ItemType *> supportedFilters;
     const BrickLink::ItemType *currentFilter = nullptr;
 
+#ifdef Q_OS_WIN
+    Microsoft::WRL::ComPtr<IAMCameraControl> dshowCameraControl;
+    long dshowZoomMin = 0, dshowZoomMax = 0, dshowZoomStep = 1, dshowZoomDefault = 0;
+    bool hasDshowZoom = false;
+#endif
+
     static bool s_hasCameraPermission;
 };
 
 bool CapturePrivate::s_hasCameraPermission = false;
+
+#ifdef Q_OS_WIN
+static Microsoft::WRL::ComPtr<IAMCameraControl> findDirectShowCameraControl(const QByteArray &deviceId)
+{
+    using Microsoft::WRL::ComPtr;
+
+    // Qt's WMF backend and DirectShow register the same device under different interface class
+    // GUIDs (KSCATEGORY_CAPTURE vs KSCATEGORY_VIDEO). Strip the "#{...}\suffix" portion and
+    // compare only the device instance path, which is the same for both.
+    auto instancePath = [](const QString &path) -> QString {
+        int idx = path.indexOf(u"#{");
+        return idx >= 0 ? path.left(idx) : path;
+    };
+    const QString targetInstance = instancePath(QString::fromLatin1(deviceId).toLower());
+
+    ComPtr<ICreateDevEnum> devEnum;
+    if (FAILED(CoCreateInstance(CLSID_SystemDeviceEnum, nullptr, CLSCTX_INPROC_SERVER,
+                                IID_PPV_ARGS(&devEnum)))) {
+        qCWarning(LogScanner) << "DirectShow zoom: CoCreateInstance(ICreateDevEnum) failed";
+        return {};
+    }
+
+    ComPtr<IEnumMoniker> enumMoniker;
+    if (FAILED(devEnum->CreateClassEnumerator(CLSID_VideoInputDeviceCategory, &enumMoniker, 0))
+            || !enumMoniker) {
+        qCWarning(LogScanner) << "DirectShow zoom: CreateClassEnumerator failed or no video input devices found";
+        return {};
+    }
+
+    ComPtr<IMoniker> moniker;
+    while (enumMoniker->Next(1, &moniker, nullptr) == S_OK) {
+        bool matched = false;
+        ComPtr<IPropertyBag> propBag;
+        if (SUCCEEDED(moniker->BindToStorage(nullptr, nullptr, IID_PPV_ARGS(&propBag)))) {
+            VARIANT var;
+            VariantInit(&var);
+            if (SUCCEEDED(propBag->Read(L"DevicePath", &var, nullptr))) {
+                matched = (instancePath(QString::fromWCharArray(var.bstrVal).toLower()) == targetInstance);
+                VariantClear(&var);
+            }
+        }
+        if (matched) {
+            ComPtr<IBaseFilter> filter;
+            if (FAILED(moniker->BindToObject(nullptr, nullptr, IID_PPV_ARGS(&filter)))) {
+                qCWarning(LogScanner) << "DirectShow zoom: BindToObject failed — camera may be exclusively locked by another session";
+                break;
+            }
+            ComPtr<IAMCameraControl> camControl;
+            if (FAILED(filter.As(&camControl))) {
+                qCWarning(LogScanner) << "DirectShow zoom: IAMCameraControl not supported by this camera's DirectShow filter";
+                break;
+            }
+            return camControl;
+        }
+        moniker.Reset();
+    }
+
+    qCWarning(LogScanner) << "DirectShow zoom: no matching device found";
+    return {};
+}
+#endif
 
 
 Capture::Capture(QObject *parent)
@@ -173,8 +245,6 @@ Capture::Capture(QObject *parent)
             this, [this](Qt::ApplicationState appState) {
         if (appState == Qt::ApplicationInactive) {
             d->appActive = false;
-            if (state() != State::Inactive)
-                setState(State::Inactive);
         } else if (appState == Qt::ApplicationActive) {
             d->appActive = true;
             if (d->winVisible && (state() == State::Inactive))
@@ -356,9 +426,48 @@ void Capture::setCurrentCameraId(const QByteArray &newCameraId)
     d->camera = std::make_unique<QCamera>(newCameraDevice);
     connect(d->camera.get(), &QCamera::activeChanged,
             this, &Capture::cameraActiveChanged);
+    connect(d->camera.get(), &QCamera::zoomFactorChanged, this, [this](qreal factor) {
+        emit zoomValueChanged(qRound(factor * 10));
+    });
 
     d->captureSession->setCamera(d->camera.get());
+
+#ifdef Q_OS_WIN
+    d->dshowCameraControl.Reset();
+    d->hasDshowZoom = false;
+    auto dsControl = findDirectShowCameraControl(newCameraId);
+    if (dsControl) {
+        long minVal, maxVal, step, defaultVal, flags;
+        HRESULT hr = dsControl->GetRange(CameraControl_Zoom, &minVal, &maxVal, &step,
+                                         &defaultVal, &flags);
+        if (FAILED(hr)) {
+            qCWarning(LogScanner) << "DirectShow zoom: IAMCameraControl::GetRange(CameraControl_Zoom) failed, hr=" << hr;
+        } else if (maxVal <= minVal) {
+            qCWarning(LogScanner) << "DirectShow zoom: GetRange succeeded but zoom range is empty (min=" << minVal << "max=" << maxVal << ")";
+        } else {
+            d->dshowCameraControl = dsControl;
+            d->dshowZoomMin     = minVal;
+            d->dshowZoomMax     = maxVal;
+            d->dshowZoomStep    = qMax(1L, step);
+            d->dshowZoomDefault = defaultVal;
+            d->hasDshowZoom     = true;
+            qCWarning(LogScanner) << "DirectShow zoom: ready — range" << minVal << "to" << maxVal << "step" << step;
+            long curVal = defaultVal, curFlags = 0;
+            if (SUCCEEDED(d->dshowCameraControl->Get(CameraControl_Zoom, &curVal, &curFlags)))
+                qCWarning(LogScanner) << "DirectShow zoom: current zoom value =" << curVal;
+            else
+                qCWarning(LogScanner) << "DirectShow zoom: Get(CameraControl_Zoom) failed — no read access";
+        }
+    }
+#endif
+
     d->camera->start();
+
+    // Emit zoomRangeChanged on the next event loop turn so that any caller constructing
+    // a dialog (and connecting to this signal afterwards) is guaranteed to receive it.
+    QMetaObject::invokeMethod(this, [this]() {
+        emit zoomRangeChanged(zoomMinimum(), zoomMaximum(), zoomStep());
+    }, Qt::QueuedConnection);
 }
 
 QByteArray Capture::currentBackendId() const
@@ -406,6 +515,59 @@ void Capture::setCurrentItemTypeFilter(const BrickLink::ItemType *filter)
 QList<const BrickLink::ItemType *> Capture::supportedItemTypeFilters() const
 {
     return d->supportedFilters;
+}
+
+int Capture::zoomValue() const
+{
+#ifdef Q_OS_WIN
+    if (d->hasDshowZoom) {
+        long value, flags;
+        if (SUCCEEDED(d->dshowCameraControl->Get(CameraControl_Zoom, &value, &flags)))
+            return int(value);
+        return int(d->dshowZoomMin);
+    }
+#endif
+    return d->camera ? qRound(d->camera->zoomFactor() * 10) : 10;
+}
+
+void Capture::setZoomValue(int value)
+{
+#ifdef Q_OS_WIN
+    if (d->hasDshowZoom) {
+        d->dshowCameraControl->Set(CameraControl_Zoom, long(value), CameraControl_Flags_Manual);
+        emit zoomValueChanged(value);
+        return;
+    }
+#endif
+    if (d->camera)
+        d->camera->setZoomFactor(value / 10.0);
+}
+
+int Capture::zoomMinimum() const
+{
+#ifdef Q_OS_WIN
+    if (d->hasDshowZoom)
+        return int(d->dshowZoomMin);
+#endif
+    return d->camera ? qRound(d->camera->minimumZoomFactor() * 10) : 10;
+}
+
+int Capture::zoomMaximum() const
+{
+#ifdef Q_OS_WIN
+    if (d->hasDshowZoom)
+        return int(d->dshowZoomMax);
+#endif
+    return d->camera ? qRound(d->camera->maximumZoomFactor() * 10) : 10;
+}
+
+int Capture::zoomStep() const
+{
+#ifdef Q_OS_WIN
+    if (d->hasDshowZoom)
+        return int(d->dshowZoomStep);
+#endif
+    return 1;
 }
 
 } // namespace Scanner
