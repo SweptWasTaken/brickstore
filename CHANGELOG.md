@@ -3,6 +3,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2026.3.2] - 2026-03-01
+
+Fixed a crash when loading more than 5000 price-guides.
+
+
+## [2026.3.1] - 2026-03-01
+
+- Finally found and fixed the bug that made the order updates hang for some people.
+- Fixed some glitches in the add-item dialog's history browsing code.
+- Added a quick way to update your token when interactions with BrickLink's servers fail.
+- Linux: added a workaround for a glitch in libsecret (responsible for securely storing the access token). You probably need to reset your token in the Settings dialog once after the update.
+
+**macOS users:** if you are still running macOS 11 or 12 you have to manually re-install BrickStore with the *macOS-10-Legacy* version (see https://endoflife.date/macos).
+
+
 ## [2025.11.1] - 2025-11-03
 
 A few small fixes:
@@ -756,7 +771,9 @@ These are a few of the highlights, but I probably forgot a lot of things ;-)
 - Per-document column configurations and the "Collector" as well as the "Simple" view mode are not (re)implemented yet.
 
 
-[Unreleased]: https://github.com/rgriebl/brickstore/compare/v2025.11.1...HEAD
+[Unreleased]: https://github.com/rgriebl/brickstore/compare/v2026.3.2...HEAD
+[2026.3.2]: https://github.com/rgriebl/brickstore/releases/tag/v2026.3.2
+[2026.3.1]: https://github.com/rgriebl/brickstore/releases/tag/v2026.3.1
 [2025.11.1]: https://github.com/rgriebl/brickstore/releases/tag/v2025.11.1
 [2025.9.2]: https://github.com/rgriebl/brickstore/releases/tag/v2025.9.2
 [2025.9.1]: https://github.com/rgriebl/brickstore/releases/tag/v2025.9.1

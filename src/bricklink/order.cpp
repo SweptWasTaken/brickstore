@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2025 Robert Griebl
+// Copyright (C) 2004-2026 Robert Griebl
 // SPDX-License-Identifier: GPL-3.0-only
 
 #include <memory>
@@ -1432,6 +1432,8 @@ void Orders::startUpdateInternal(const QDate &fromDate, const QDate &toDate,
         }
 
         auto job = TransferJob::post(u"https://www.bricklink.com/orderExcelFinal.asp"_qs, query);
+        // an empty list will redirect to an URL containing the query item "error=EOF"
+        job->setFollowRedirects(false);
         job->setUserData(type, true);
         d->m_jobs << job;
 

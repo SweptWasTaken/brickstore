@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2025 Robert Griebl
+// Copyright (C) 2004-2026 Robert Griebl
 // SPDX-License-Identifier: GPL-3.0-only
 
 #pragma once
@@ -55,10 +55,6 @@ public:
     static QUrl urlForWantedList(uint wantedListId);
 
     QString dataPath() const;
-    QFile *dataReadFile(QStringView fileName, const Item *item,
-                        const Color *color = nullptr) const;
-    QSaveFile *dataSaveFile(QStringView fileName, const Item *item,
-                            const Color *color = nullptr) const;
     void setAccessToken(const QString &accessToken);
     bool hasAccessToken() const;
 
@@ -151,9 +147,6 @@ private:
     friend Core *create(const QString &, const QString &, quint64);
 
 private:
-    QString dataFileName(QStringView fileName, const Item *item, const Color *color) const;
-
-private:
     QString  m_datadir;
 
     QIcon                           m_noImageIcon;
@@ -166,6 +159,7 @@ private:
     QByteArray                 m_sessionToken;
     TransferJob *              m_loginJob = nullptr;
     QVector<TransferJob *>     m_jobsWaitingForAuthentication;
+    QHash<TransferJob *, bool> m_authenticatedJobFollowRedirect;
     int                        m_transferStatId = -1;
 
     std::unique_ptr<Database> m_database;

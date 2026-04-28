@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2025 Robert Griebl
+# Copyright (C) 2004-2026 Robert Griebl
 # SPDX-License-Identifier: GPL-3.0-only
 
 cmake_minimum_required(VERSION 3.19.0)
@@ -13,7 +13,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-set(SENTRY_VERSION 0.10.1)
+set(SENTRY_VERSION 0.12.2)
 set(QCORO_VERSION  0.12.0)
 
 set(QT_NO_PRIVATE_MODULE_WARNING ON)
@@ -33,7 +33,7 @@ option(VERBOSE_FETCH "Verbose output for 3rd party FetchContent" OFF)
 
 set(NAME           "BrickStore")
 set(DESCRIPTION    "${NAME} - an offline BrickLink inventory management tool")
-set(COPYRIGHT      "2004-2025 Robert Griebl")
+set(COPYRIGHT      "2004-2026 Robert Griebl")
 set(BRICKSTORE_URL "www.brickstore.dev")
 set(GITHUB_URL     "github.com/rgriebl/brickstore")
 set(BUILD_NUMBER   "$ENV{BUILD_NUMBER}")
@@ -105,7 +105,7 @@ if (MSVC)
     # need to disable C4702 due to 6.4.0 QAnyStringView
     list(APPEND copts /W4 /WX /wd4127 /wd4702)
 elseif (CLANG)
-    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 17.0)
+    if (NOT APPLE AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 17.0)
         list(APPEND cxxopts -fcoroutines-ts)
     endif()
     list(APPEND cxxopts -stdlib=libc++)
@@ -297,7 +297,7 @@ qt_add_lrelease(${PROJECT_NAME}
 # let lupdate itself scan recursively
 add_custom_target(${PROJECT_NAME}_lupdate
     COMMAND ${QT_CMAKE_EXPORT_NAMESPACE}::lupdate "${CMAKE_SOURCE_DIR}"
-            -locations relative -no-ui-lines -ts ${TS_FILES}
+            -locations relative -ts ${TS_FILES}
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMAND_EXPAND_LISTS
     VERBATIM

@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2025 Robert Griebl
+// Copyright (C) 2004-2026 Robert Griebl
 // SPDX-License-Identifier: GPL-3.0-only
 
 #include <QThread>
@@ -15,9 +15,9 @@
 
 Q_LOGGING_CATEGORY(LogTransfer, "bs.transfer", QtWarningMsg)
 
-static const char *BL_SESSION_TOKEN_HEADER = "x-bl-session-token";
-static const char *BL_CLIENT_ID_HEADER = "x-bl-tpa-client-id";
-static const char *BL_CLIENT_ID_VALUE = "ca629c09-4d8c-45dc-8a6f-bfb2b058f720";
+static const char * const BL_SESSION_TOKEN_HEADER = "x-bl-session-token";
+static const char * const BL_CLIENT_ID_HEADER = "x-bl-tpa-client-id";
+static const char * const BL_CLIENT_ID_VALUE = "ca629c09-4d8c-45dc-8a6f-bfb2b058f720";
 
 TransferJob::~TransferJob()
 {
@@ -318,7 +318,7 @@ void TransferRetriever::abortAllJobs()
         emit finished(j);
     }
 
-    m_progressDone += m_jobs.size();
+    m_progressDone += int(m_jobs.size());
     emit overallProgress(m_progressDone, m_progressTotal);
     if (m_progressDone == m_progressTotal)
         m_progressDone = m_progressTotal = 0;
@@ -351,7 +351,7 @@ void TransferRetriever::schedule()
         req.setAttribute(QNetworkRequest::Http2AllowedAttribute, false); // QTBUG-105043
         req.setAttribute(QNetworkRequest::HttpPipeliningAllowedAttribute, true);
         req.setHeader(QNetworkRequest::UserAgentHeader, m_transfer->userAgent());
-        if (j->m_no_redirects) {
+        if (!j->m_follow_redirects) {
             req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                              QNetworkRequest::ManualRedirectPolicy);
         }

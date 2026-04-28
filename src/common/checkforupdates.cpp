@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2025 Robert Griebl
+// Copyright (C) 2004-2026 Robert Griebl
 // SPDX-License-Identifier: GPL-3.0-only
 
 #include <QEvent>
@@ -138,8 +138,10 @@ QCoro::Task<> CheckForUpdates::check(bool silent)
             bool match = false;
 #if defined(Q_OS_MACOS)
             if (name.startsWith(u"macOS-", Qt::CaseInsensitive)) {
+                const auto macos = QVersionNumber::fromString(QSysInfo::productVersion());
+
                 bool dlLegacy = name.startsWith(u"macOS-10-Legacy-", Qt::CaseInsensitive);
-                bool osLegacy = QSysInfo::productVersion().startsWith(u"10.");
+                bool osLegacy = (macos < QVersionNumber(13));
                 match = (dlLegacy == osLegacy);
             }
 #elif defined(Q_OS_WINDOWS) && defined(_M_AMD64)

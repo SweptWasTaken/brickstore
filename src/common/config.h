@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2025 Robert Griebl
+// Copyright (C) 2004-2026 Robert Griebl
 // SPDX-License-Identifier: GPL-3.0-only
 
 #pragma once
@@ -211,6 +211,8 @@ private:
     mutable QVector<Translation> m_translations;
     QString                    m_lastDirectory;
     mutable QString            m_brickLinkAccessToken;
+
+    Q_DISABLE_COPY_MOVE(Config)
 };
 
 Q_DECLARE_METATYPE(Config *)

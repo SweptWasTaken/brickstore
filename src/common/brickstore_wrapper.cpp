@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2025 Robert Griebl
+// Copyright (C) 2004-2026 Robert Griebl
 // SPDX-License-Identifier: GPL-3.0-only
 
 
@@ -1144,9 +1144,8 @@ void QmlDebugLogModel::append(QtMsgType type, const QString &category, const QSt
 
 QmlDebug::QmlDebug(QObject *parent)
     : QObject(parent)
-{
-    m_showTracers = (qEnvironmentVariableIntValue("BS_SHOW_TRACERS") == 1);
-}
+    , m_showTracers((qEnvironmentVariableIntValue("BS_SHOW_TRACERS") == 1))
+{ }
 
 bool QmlDebug::showTracers() const
 {

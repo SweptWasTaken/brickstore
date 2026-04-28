@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2025 Robert Griebl
+// Copyright (C) 2004-2026 Robert Griebl
 // SPDX-License-Identifier: GPL-3.0-only
 
 #include <algorithm>
@@ -61,7 +61,7 @@ struct FieldOp
 
 private:
     template<class Q = R>
-    static typename std::enable_if<!std::is_same<Q, double>::value && !std::is_same<Q, QString>::value, bool>::type
+    static typename std::enable_if_t<!std::is_same_v<Q, double> && !std::is_same_v<Q, QString>, bool>
     mergeInternal(const Lot &from, Lot &to, DocumentModel::MergeMode mergeMode,
                   const R defaultValue)
     {
@@ -75,7 +75,7 @@ private:
     }
 
     template<class Q = R>
-    static typename std::enable_if<std::is_same<Q, double>::value, bool>::type
+    static typename std::enable_if_t<std::is_same_v<Q, double>, bool>
     mergeInternal(const Lot &from, Lot &to, DocumentModel::MergeMode mergeMode,
                   const R defaultValue)
     {
@@ -98,7 +98,7 @@ private:
     }
 
     template<class Q = R>
-    static typename std::enable_if<std::is_same<Q, QString>::value, bool>::type
+    static typename std::enable_if_t<std::is_same_v<Q, QString>, bool>
     mergeInternal(const Lot &from, Lot &to, DocumentModel::MergeMode mergeMode,
                   const R defaultValue)
     {
@@ -676,7 +676,6 @@ QCoro::Task<int> DocumentModel::addLots(BrickLink::LotList &&lotsRef, AddLotMode
         co_return -1;
 
     // We own the items now, but we have to move them into a local variable, because
-
     // the lotsRef reference might go out of scope when we co_await later
     LotList lots(lotsRef);
     lotsRef.clear();
@@ -2406,7 +2405,7 @@ void DocumentModel::multiSort(const QVector<QPair<int, Qt::SortOrder>> &columns)
     if (m_undo) {
         m_undo->push(new SortCmd(this, columns));
     } else {
-        bool dummy1;
+        bool dummy1 { };
         LotList dummy2;
         sortDirect(columns, dummy1, dummy2);
     }
@@ -2459,34 +2458,38 @@ void DocumentModel::sortDirect(const QVector<QPair<int, Qt::SortOrder>> &columns
         m_sortedLots = m_lots;
 
         if ((columns.size() != 1) || (columns.at(0).first != -1)) {
-            // make the sort deterministic
-            auto columnsPlusIndex = columns;
-            bool needIndex = true;
+            bool needIndex = true; // make the sort deterministic, by using index as a tie-breaker
+            QVector<QPair<const Column *, Qt::SortOrder>> columnsPlusIndex;
+
+            // pre-resolve column lookups once to avoid a hash lookup per comparator call
             for (const auto &[columnIndex, sortOrder] : columns) {
-                if (columnIndex == 0) {
+                if (columnIndex == 0)
                     needIndex = false;
-                    break;
-                }
+                if (auto cit = m_columns.constFind(columnIndex); cit != m_columns.constEnd())
+                    columnsPlusIndex.append({ &cit.value(), sortOrder });
             }
             if (needIndex) {
-                columnsPlusIndex.append(qMakePair(0, columns.isEmpty() ? Qt::AscendingOrder
-                                                                       : columns.constFirst().second));
+                if (auto cit = m_columns.constFind(0); cit != m_columns.constEnd()) {
+                    columnsPlusIndex.append({ &cit.value(), columns.isEmpty() ? Qt::AscendingOrder
+                                                                              : columns.constFirst().second });
+                }
             }
 
             qParallelSort(m_sortedLots.begin(), m_sortedLots.end(),
-                          [this, columnsPlusIndex](const auto *lot1, const auto *lot2) {
+                          [columnsPlusIndex](const auto *lot1, const auto *lot2) {
                 std::partial_ordering o = std::partial_ordering::equivalent;
-                for (const auto &[columnIndex, sortOrder] : columnsPlusIndex) {
-                    const auto &column = m_columns.value(columnIndex);
+                for (const auto &[column, sortOrder] : columnsPlusIndex) {
+                    if (sortOrder == Qt::DescendingOrder)
+                        std::swap(lot1, lot2);
 
-                    if (column.compareFn) {
-                        o = column.compareFn(lot1, lot2);
-                    } else if (column.dataFn) {
-                        const auto v1 = column.dataFn(lot1);
-                        const auto v2 = column.dataFn(lot2);
+                    if (column->compareFn) {
+                        o = column->compareFn(lot1, lot2);
+                    } else if (column->dataFn) {
+                        const auto v1 = column->dataFn(lot1);
+                        const auto v2 = column->dataFn(lot2);
 
                         // Qt (as of 6.5.0) does not support operator<=> on QVariant yet
-                        switch (column.type) {
+                        switch (column->type) {
                         case Column::Type::String:
                             o = v1.toString().localeAwareCompare(v2.toString()) <=> 0; break;
                         case Column::Type::Integer:
@@ -2499,16 +2502,13 @@ void DocumentModel::sortDirect(const QVector<QPair<int, Qt::SortOrder>> &columns
                         case Column::Type::Date:
                             o = v1.toDateTime().toSecsSinceEpoch() <=> v2.toDateTime().toSecsSinceEpoch(); break;
                         case Column::Type::Special:
-                            o = std::partial_ordering::equivalent; break;
                         default:
-                            o = std::partial_ordering::unordered; break;
+                            o = std::partial_ordering::equivalent; break;
                         }
                     }
-                    if (o != 0) {
-                        if (sortOrder == Qt::DescendingOrder)
-                            o = (o < 0) ? std::partial_ordering::greater : std::partial_ordering::less;
+                    Q_ASSERT(o != std::partial_ordering::unordered);
+                    if (o != std::partial_ordering::equivalent)
                         break;
-                    }
                 }
                 return o < 0;
             });
@@ -2622,22 +2622,22 @@ bool DocumentModel::restoreSortFilterState(const QByteArray &ba)
 {
     QDataStream ds(ba);
     QByteArray tag;
-    qint32 version;
+    qint32 version { };
     ds >> tag >> version;
     if ((ds.status() != QDataStream::Ok) || (tag != "SFST") || (version < 2) || (version > 4))
         return false;
     QVector<QPair<int, Qt::SortOrder>> sortColumns;
     QVector<Filter> filter;
-    qint32 viewSize;
+    qint32 viewSize = 0;
 
-    qint8 sortColumnsSize;
+    qint8 sortColumnsSize = 0;
     if (version == 2)
         sortColumnsSize = 1;
     else
         ds >> sortColumnsSize;
     sortColumns.reserve(sortColumnsSize);
     for (int i = 0; i < sortColumnsSize; ++i) {
-        qint8 sortColumn, sortOrder;
+        qint8 sortColumn { }, sortOrder { };
         ds >> sortColumn >> sortOrder;
         sortColumns.emplace_back(sortColumn, Qt::SortOrder(sortOrder));
     }
@@ -2647,11 +2647,11 @@ bool DocumentModel::restoreSortFilterState(const QByteArray &ba)
         ds >> filterString;
         filter = m_filterParser->parse(filterString);
     } else {
-        qint8 filterSize;
+        qint8 filterSize = 0;
         ds >> filterSize;
         filter.reserve(filterSize);
         for (int i = 0; i < filterSize; ++i) {
-            qint8 filterField, filterComparison, filterCombination;
+            qint8 filterField { }, filterComparison { }, filterCombination { };
             QString filterExpression;
             ds >> filterField >> filterComparison >> filterCombination >> filterExpression;
             Filter f;
@@ -2670,7 +2670,7 @@ bool DocumentModel::restoreSortFilterState(const QByteArray &ba)
     LotList filteredLots;
     int lotsSize = int(m_lots.size());
     while (viewSize--) {
-        qint32 pos;
+        qint32 pos { };
         ds >> pos;
         if ((pos < -lotsSize) || (pos >= lotsSize))
             return false;
@@ -3014,7 +3014,7 @@ std::tuple<LotList, QString> DocumentLotsMimeData::lots(const QMimeData *md)
         uint startChangelogAt = 0;
 
         QByteArray tag;
-        qint32 version;
+        qint32 version { };
         ds >> tag >> version;
         if ((ds.status() != QDataStream::Ok) || (tag != "LOTS") || (version != 2))
             return { };

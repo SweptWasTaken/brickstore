@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2025 Robert Griebl
+// Copyright (C) 2004-2026 Robert Griebl
 // SPDX-License-Identifier: GPL-3.0-only
 
 import QtQuick
@@ -65,11 +65,11 @@ Item {
             id: env
             clearColor: root.renderController.clearColor
             backgroundMode: SceneEnvironment.Color
-            antialiasingMode: (RenderSettings.antiAliasing === RenderSettings.NoAA) ?
+            antialiasingMode: (RenderSettings.antiAliasing === RenderSettings.No) ?
                                   SceneEnvironment.NoAA : SceneEnvironment.SSAA
-            antialiasingQuality: (RenderSettings.antiAliasing === RenderSettings.MediumAA)
+            antialiasingQuality: (RenderSettings.antiAliasing === RenderSettings.Medium)
                                  ? SceneEnvironment.Medium
-                                 : ((RenderSettings.antiAliasing === RenderSettings.VeryHighAA)
+                                 : ((RenderSettings.antiAliasing === RenderSettings.VeryHigh)
                                     ? SceneEnvironment.VeryHigh
                                     : SceneEnvironment.High)
             lightProbe: Texture { source: "./textures/lightbox.ktx" }

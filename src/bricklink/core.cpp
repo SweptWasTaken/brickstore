@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2025 Robert Griebl
+// Copyright (C) 2004-2026 Robert Griebl
 // SPDX-License-Identifier: GPL-3.0-only
 
 #include <array>
@@ -19,11 +19,9 @@
 #include <QMetaEnum>
 
 #include "utility/appstatistics.h"
-#include "utility/q5hashfunctions.h"
 #include "utility/utility.h"
 #include "utility/exception.h"
 #include "utility/transfer.h"
-#include "utility/persistentcookiejar.h"
 
 #include "bricklink/category.h"
 #include "bricklink/color.h"
@@ -212,43 +210,6 @@ QString Core::dataPath() const
     return m_datadir;
 }
 
-QString Core::dataFileName(QStringView fileName, const Item *item, const Color *color) const
-{
-    // Avoid huge directories with 1000s of entries.
-    // sse4.2 is only used if a seed value is supplied
-    // please note: Qt6's qHash is incompatible
-    uchar hash = q5Hash(QString::fromLatin1(item->id()), 42) & 0xff;
-
-    QString p = m_datadir + QLatin1Char(item->itemTypeId()) + u'/' + (hash < 0x10 ? u"0" : u"")
-            + QString::number(hash, 16) + u'/' + QLatin1String(item->id()) + u'/'
-            + (color ? QString::number(color->id()) : QString()) + (color ? u"/" : u"")
-            + fileName;
-
-    return p;
-}
-
-QFile *Core::dataReadFile(QStringView fileName, const Item *item, const Color *color) const
-{
-    auto f = new QFile(dataFileName(fileName, item, color));
-    (void) f->open(QIODevice::ReadOnly);
-    return f;
-}
-
-QSaveFile *Core::dataSaveFile(QStringView fileName, const Item *item, const Color *color) const
-{
-    auto p = dataFileName(fileName, item, color);
-
-    if (!QDir(fileName.isEmpty() ? p : p.left(p.size() - int(fileName.size()))).mkpath(u"."_qs))
-        return nullptr;
-
-    auto f = new QSaveFile(p);
-    if (!f->open(QIODevice::WriteOnly)) {
-        qCWarning(LogCache) << "BrickLink::Core::dataSaveFile failed to open" << f->fileName()
-                            << "for writing:" << f->errorString();
-    }
-    return f;
-}
-
 void Core::setAccessToken(const QString &accessToken)
 {
     if (m_accessToken != accessToken) {
@@ -274,8 +235,10 @@ bool Core::isAuthenticated() const
 
 void Core::retrieveAuthenticated(TransferJob *job)
 {
-    if (job)
-        job->setNoRedirects(true);
+    if (job) {
+        m_authenticatedJobFollowRedirect.insert(job, job->followRedirects());
+        job->setFollowRedirects(false);
+    }
 
     if (!m_authenticated || m_sessionToken.isEmpty() ) {
         if (!m_loginJob) {
@@ -295,7 +258,7 @@ void Core::retrieveAuthenticated(TransferJob *job)
 
             static const QString targetHost = u"https://account.prod.member.bricklink.info/api/v1/actions/verify-and-create-session"_qs;
             m_loginJob = TransferJob::post(targetHost, {}, u"application/json"_qs, jsonDoc.toJson());
-            m_loginJob->setNoRedirects(true);
+            m_loginJob->setFollowRedirects(false);
             m_authenticatedTransfer->retrieve(m_loginJob, true);
         }
         if (job)
@@ -439,6 +402,7 @@ Core::Core(const QString &datadir, const QString &updateUrl, quint64 physicalMem
         } else {
             bool lostAuthentication = false;
             bool normalRedirect = false;
+            bool followRedirect = m_authenticatedJobFollowRedirect.take(job);
 
             if (job->responseCode() == 302) {
                 if (!job->redirectUrl().toString().contains(u"auth/sign-in?"))
@@ -455,12 +419,14 @@ Core::Core(const QString &datadir, const QString &updateUrl, quint64 physicalMem
                     emit authenticationChanged(m_authenticated);
                 }
                 job->resetForReuse();
+                job->setFollowRedirects(followRedirect);
 
                 QMetaObject::invokeMethod(this, [=, this]() {
                     retrieveAuthenticated(job);
                 }, Qt::QueuedConnection);
-            } else if (normalRedirect) {
+            } else if (normalRedirect && followRedirect) {
                 job->resetForReuse(true /* applyRedirect*/);
+                job->setFollowRedirects(true);
 
                 QMetaObject::invokeMethod(this, [=, this]() {
                     retrieveAuthenticated(job);

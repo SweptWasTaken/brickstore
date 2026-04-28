@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2025 Robert Griebl
+// Copyright (C) 2004-2026 Robert Griebl
 // SPDX-License-Identifier: GPL-3.0-only
 
 #include <QtCore/QFileInfo>
@@ -224,7 +224,14 @@ void Application::init()
                                     : QString(accessToken.left(5) + u"..." + accessToken.right(5));
 
             UIHelpers::warning(tr("Failed to authenticate with BrickLink using access token <tt>%1</tt>")
-                                   .arg(safeToken) + u"<br><b>" + error + u"</b>");
+                                   .arg(safeToken) + u"<br><b>" + error + u"</b><br><br>" +
+                               tr("Most likely your token has expired: you can click <i>Retry</i> to open Settings and renew it."),
+                               UIHelpers::StandardButton::Ok | UIHelpers::StandardButton::Retry,
+                               UIHelpers::StandardButton::Ok)
+                .then([](UIHelpers::StandardButton btn) {
+                    if (btn == UIHelpers::StandardButton::Retry)
+                        emit Application::inst()->showSettings(u"bricklink"_qs);
+                });
         }
     });
 
@@ -358,7 +365,7 @@ void Application::afterInit()
         delayedInit();
     } else {
         qInfo() << "Delaying initialization until online";
-        QMetaObject::invokeMethod(this, [=, this]() {
+        QMetaObject::invokeMethod(this, [this, delayedInit]() {
                 if (OnlineState::inst()->isOnline()) {
                     delayedInit();
                 } else {
@@ -661,7 +668,7 @@ void Application::setupTerminateHandler()
             if (auto type = abi::__cxa_current_exception_type()) {
                 typeName = type->name();
                 if (typeName) {
-                    int status;
+                    int status = 0;
                     demangleBuffer = abi::__cxa_demangle(typeName, demangleBuffer, &demangleBufferSize, &status);
                     if (status == 0 && *demangleBuffer)
                         typeName = demangleBuffer;
