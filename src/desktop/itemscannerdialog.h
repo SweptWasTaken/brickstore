@@ -13,6 +13,7 @@
 QT_FORWARD_DECLARE_CLASS(QComboBox)
 QT_FORWARD_DECLARE_CLASS(QButtonGroup)
 QT_FORWARD_DECLARE_CLASS(QLabel)
+QT_FORWARD_DECLARE_CLASS(QSlider)
 QT_FORWARD_DECLARE_CLASS(QToolButton)
 QT_FORWARD_DECLARE_CLASS(QProgressBar)
 QT_FORWARD_DECLARE_CLASS(QStackedLayout)
@@ -55,6 +56,8 @@ private:
     QLabel *m_labelBackend;
     QLabel *m_labelItemType;
     Scanner::CameraPreviewWidget *m_cameraPreviewWidget;
+    QSlider *m_zoomSlider;
+    QLabel *m_zoomLabel;
     QLabel *m_status;
     QProgressBar *m_progress;
     QStackedLayout *m_bottomStack;

@@ -5,8 +5,10 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QProgressBar>
+#include <QSlider>
 #include <QToolButton>
 #include <QFormLayout>
+#include <QHBoxLayout>
 #include <QStackedLayout>
 #include <QVBoxLayout>
 #include <QKeyEvent>
@@ -75,6 +77,42 @@ ItemScannerDialog::ItemScannerDialog(QWidget *parent)
     connect(m_capture, &Scanner::Capture::cameraActiveChanged,
             m_cameraPreviewWidget, &Scanner::CameraPreviewWidget::setActive);
 
+    m_zoomSlider = new QSlider(Qt::Horizontal, this);
+    m_zoomSlider->setFocusPolicy(Qt::NoFocus);
+    m_zoomSlider->setRange(10, 10);
+    m_zoomSlider->setValue(10);
+    m_zoomSlider->setEnabled(false);
+
+    m_zoomLabel = new QLabel(u"1.0×"_qs, this);
+    m_zoomLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+
+    auto updateZoomLabel = [this](int value) {
+        double factor = double(value) / qMax(m_capture->zoomMinimum(), 1);
+        m_zoomLabel->setText(QString::number(factor, 'f', 1) + u"×"_qs);
+    };
+
+    connect(m_zoomSlider, &QSlider::valueChanged, this, [this](int value) {
+        m_capture->setZoomValue(value);
+    });
+    connect(m_capture, &Scanner::Capture::zoomValueChanged, this, [this, updateZoomLabel](int value) {
+        const QSignalBlocker blocker(m_zoomSlider);
+        m_zoomSlider->setValue(value);
+        updateZoomLabel(value);
+    });
+    connect(m_capture, &Scanner::Capture::zoomRangeChanged, this, [this, updateZoomLabel](int minimum, int maximum, int step) {
+        const bool hasZoom = maximum > minimum;
+        m_zoomSlider->setEnabled(hasZoom);
+        if (hasZoom) {
+            const QSignalBlocker blocker(m_zoomSlider);
+            m_zoomSlider->setRange(minimum, maximum);
+            m_zoomSlider->setSingleStep(step);
+            m_zoomSlider->setPageStep(step * 5);
+            int cur = m_capture->zoomValue();
+            m_zoomSlider->setValue(cur);
+            updateZoomLabel(cur);
+        }
+    });
+
     m_progress = new QProgressBar(this);
     m_progress->setTextVisible(false);
     m_progress->setRange(0, 100);
@@ -111,9 +149,15 @@ ItemScannerDialog::ItemScannerDialog(QWidget *parent)
     m_bottomStack->setContentsMargins(0, 0, 0, 0);
     m_bottomStack->addWidget(m_status);
     m_bottomStack->addWidget(m_progress);
+    auto *zoomRow = new QHBoxLayout();
+    zoomRow->addWidget(m_zoomSlider, 1);
+    zoomRow->addWidget(m_zoomLabel);
+    auto *rightColumn = new QVBoxLayout();
+    rightColumn->addLayout(zoomRow);
+    rightColumn->addLayout(m_bottomStack);
     auto *bottomLayout = new QHBoxLayout();
-    bottomLayout->addWidget(m_pinWindow);
-    bottomLayout->addLayout(m_bottomStack, 1);
+    bottomLayout->addWidget(m_pinWindow, 0, Qt::AlignVCenter);
+    bottomLayout->addLayout(rightColumn, 1);
     layout->addLayout(bottomLayout, 0);
 
     updateCameraDevices();
@@ -272,6 +316,7 @@ void ItemScannerDialog::languageChange()
     m_labelItemType->setText(tr("Item type"));
 
     m_pinWindow->setToolTip(tr("Keep this window open"));
+    m_zoomSlider->setToolTip(tr("Zoom"));
 }
 
 void ItemScannerDialog::updateStatusText()

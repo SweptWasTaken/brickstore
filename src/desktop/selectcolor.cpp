@@ -322,6 +322,11 @@ void SelectColor::setCurrentColorAndItem(const BrickLink::Color *color, const Br
     updateColorFilter(w_filter->currentIndex());
 
     auto colorIndex = m_colorModel->index(color);
+    if (!colorIndex.isValid()) {
+        const int currentFilter = w_filter->itemData(w_filter->currentIndex()).toInt();
+        if (currentFilter == KnownColors && item && item->knownColors().size() == 1)
+            colorIndex = m_colorModel->index(0, 0);
+    }
     if (colorIndex.isValid())
         w_colors->setCurrentIndex(colorIndex);
     else

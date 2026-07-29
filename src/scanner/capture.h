@@ -52,6 +52,14 @@ public:
     bool isCameraActive() const;
     Q_SIGNAL void cameraActiveChanged(bool newActive);
 
+    int zoomValue() const;
+    void setZoomValue(int value);
+    int zoomMinimum() const;
+    int zoomMaximum() const;
+    int zoomStep() const;
+    Q_SIGNAL void zoomValueChanged(int value);
+    Q_SIGNAL void zoomRangeChanged(int minimum, int maximum, int step);
+
     QByteArray currentCameraId() const;
     void setCurrentCameraId(const QByteArray &newCameraId);
     Q_SIGNAL void currentCameraIdChanged(const QByteArray &newCameraId);

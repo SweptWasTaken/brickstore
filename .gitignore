@@ -89,3 +89,6 @@ _deps/
 # NPM artifacts
 package-lock.json
 node_modules/
+BrickVoice
+CLAUDE.md
+nul
